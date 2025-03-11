@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Breathing Tracker</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2em;
+      text-align: center;
+    }
+    #rate {
+      font-size: 2em;
+      margin-top: 1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Breathing Rate Tracker</h1>
+  <button onclick="startTracking()">Start Tracking</button>
+  <div id="rate">Breaths: 0</div>
+
+  <script>
+    let lastZ = null;
+    let breathCount = 0;
+    let direction = null;
+    let lastTimestamp = 0;
+
+    function startTracking() {
+      // Request permission for iOS
+      if (typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission()
+          .then(permissionState => {
+            if (permissionState === 'granted') {
+              window.addEventListener('devicemotion', trackBreathing);
+            } else {
+              alert("Permission denied");
+            }
+          })
+          .catch(console.error);
+      } else {
+        window.addEventListener('devicemotion', trackBreathing);
+      }
+    }
+
+    function trackBreathing(event) {
+      const z = event.accelerationIncludingGravity.z;
+      const timestamp = Date.now();
+
+      if (lastZ === null) {
+        lastZ = z;
+        return;
+      }
+
+      // Detect rise and fall (simple peak detection)
+      const delta = z - lastZ;
+
+      if (delta > 0.3 && direction !== 'up') {
+        direction = 'up';
+      } else if (delta < -0.3 && direction === 'up') {
+        // Detected a full breath (up then down)
+        if (timestamp - lastTimestamp > 1500) { // Debounce to ~max 40 bpm
+          breathCount++;
+          document.getElementById('rate').textContent = `Breaths: ${breathCount}`;
+          lastTimestamp = timestamp;
+        }
+        direction = 'down';
+      }
+
+      lastZ = z;
+    }
+  </script>
+</body>
+</html>
